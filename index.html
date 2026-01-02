@@ -1,0 +1,425 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 <!DOCTYPE html>\
+<html lang="de">\
+<head>\
+    <meta charset="UTF-8">\
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\
+    <title>NZ Master Guide</title>\
+    \
+    <!-- Leaflet CSS -->\
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />\
+    \
+    <!-- Tailwind CSS -->\
+    <script src="https://cdn.tailwindcss.com"></script>\
+    \
+    <style>\
+        /* Force Full Screen Height */\
+        html, body \{ height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #f1f5f9; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; \}\
+        \
+        #app-loading \{\
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;\
+            background: #ffffff; z-index: 9999; display: flex;\
+            justify-content: center; align-items: center; flex-direction: column;\
+            transition: opacity 0.5s;\
+        \}\
+        \
+        #app-container \{ display: flex; flex-direction: column; height: 100%; width: 100%; visibility: hidden; \}\
+        \
+        /* Desktop */\
+        @media (min-width: 768px) \{\
+            #app-container \{ flex-direction: row; \}\
+            #sidebar \{ width: 420px; height: 100%; display: flex; flex-direction: column; flex-shrink: 0; z-index: 20; border-right: 1px solid #cbd5e1; \}\
+            #map-container \{ flex-grow: 1; height: 100%; \}\
+        \}\
+        \
+        /* Mobile */\
+        @media (max-width: 767px) \{\
+            #map-container \{ height: 45%; width: 100%; \}\
+            #sidebar \{ height: 55%; width: 100%; display: flex; flex-direction: column; \}\
+        \}\
+\
+        .tab-content \{ display: none; flex-grow: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; \}\
+        .tab-content.active \{ display: block; \}\
+        .tab-btn.active \{ border-bottom: 3px solid #10b981; color: #065f46; background-color: #ecfdf5; \}\
+        \
+        .stop-done \{ opacity: 0.6; background-color: #f8fafc; \}\
+        .stop-done h3 \{ text-decoration: line-through; color: #94a3b8; \}\
+        .stop-done .desc-text \{ display: none; \}\
+        \
+        .check-btn \{ transition: transform 0.1s; \}\
+        .check-btn:active \{ transform: scale(0.9); \}\
+\
+        /* Markers */\
+        .custom-pin \{ transition: transform 0.2s; \}\
+        .pulse-ring \{\
+            border: 3px solid #ef4444;\
+            border-radius: 50%; height: 24px; width: 24px;\
+            position: absolute; top: -3px; left: -3px;\
+            animation: pulsate 1.5s infinite; opacity: 0;\
+        \}\
+        @keyframes pulsate \{\
+            0% \{ transform: scale(0.1); opacity: 0.0; \}\
+            50% \{ opacity: 0.8; \}\
+            100% \{ transform: scale(1.5); opacity: 0.0; \}\
+        \}\
+    </style>\
+</head>\
+<body>\
+\
+    <!-- Loading Screen -->\
+    <div id="app-loading">\
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>\
+        <h2 class="text-xl font-bold text-slate-700">Lade Karte...</h2>\
+        <p class="text-sm text-slate-400 mt-2">Bitte warten</p>\
+    </div>\
+\
+    <div id="app-container">\
+        <!-- Sidebar -->\
+        <div id="sidebar" class="bg-white shadow-xl relative z-20">\
+            <!-- Header -->\
+            <div class="p-4 bg-slate-900 text-white shrink-0">\
+                <div class="flex justify-between items-center mb-1">\
+                    <h1 class="font-bold text-lg flex items-center gap-2">\
+                        <span>\uc0\u55356 \u56819 \u55356 \u56831 </span> Master Plan\
+                    </h1>\
+                    <div id="progress-text" class="text-xs bg-emerald-600 px-2 py-1 rounded text-white font-mono">0/36 Done</div>\
+                </div>\
+                <div class="w-full bg-slate-700 h-1.5 rounded-full mt-2 overflow-hidden">\
+                    <div id="progress-bar" class="bg-emerald-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>\
+                </div>\
+            </div>\
+\
+            <!-- Tabs -->\
+            <div class="flex border-b border-slate-200 bg-white shrink-0">\
+                <button onclick="switchTab('route')" id="tab-route" class="tab-btn active flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 text-center">\
+                    \uc0\u55357 \u56826 \u65039  ROUTE\
+                </button>\
+                <button onclick="switchTab('todo')" id="tab-todo" class="tab-btn flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 text-center relative">\
+                    \uc0\u9989  TO-DO\
+                    <span id="todo-badge" class="absolute top-2 right-6 w-2 h-2 bg-red-500 rounded-full hidden"></span>\
+                </button>\
+            </div>\
+\
+            <!-- Content: Route List -->\
+            <div id="view-route" class="tab-content active p-3 space-y-3 bg-slate-50"></div>\
+\
+            <!-- Content: To-Do List -->\
+            <div id="view-todo" class="tab-content p-4 bg-slate-50">\
+                <div id="todo-list" class="space-y-3"></div>\
+            </div>\
+        </div>\
+\
+        <!-- Map -->\
+        <div id="map-container" class="relative bg-slate-200">\
+            <div id="map" class="w-full h-full z-10"></div>\
+            \
+            <!-- Mobile Legend Button -->\
+            <div class="absolute bottom-6 left-6 z-[400] md:hidden">\
+                <div class="bg-white/90 backdrop-blur p-2 rounded-lg shadow-lg text-xs font-bold border border-slate-200" onclick="alert('GR\'dcN: Gym/Start\\nGELB: Essen\\nLILA: Highlight\\nBLAU: Camp')">\
+                    \uc0\u8505 \u65039  Legende\
+                </div>\
+            </div>\
+\
+            <!-- Desktop Legend -->\
+            <div class="absolute bottom-6 left-6 z-[400] hidden md:block">\
+                <div class="bg-white/95 backdrop-blur p-3 rounded-lg shadow-xl max-w-xs text-xs border border-slate-200 space-y-1.5 font-bold text-slate-600">\
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Gym (Duschen!)</div>\
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-yellow-500"></div> Essen & Milch</div>\
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-purple-500"></div> Highlight</div>\
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div> Freedom Camp</div>\
+                </div>\
+            </div>\
+        </div>\
+    </div>\
+\
+    <!-- Leaflet JS -->\
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>\
+    <!-- Lucide Icons -->\
+    <script src="https://unpkg.com/lucide@latest"></script>\
+\
+    <script>\
+        // --- MASTER DATA ---\
+        const stopsData = [\
+            \{ id: 1, day: 1, title: "Ashburton CityFitness", coords: [-43.9006, 171.7408], type: "gym", tag: "START", desc: "Start 16:30. Workout (Push).", camp: "Stop" \},\
+            \{ id: 2, day: 1, title: "Rakaia Gorge", coords: [-43.5186, 171.6420], type: "gem", tag: "WALK", desc: "Abendlicht am Fluss. T\'fcrkises Wasser.", camp: "Stop" \},\
+            \{ id: 3, day: 1, title: "Lake Opuha", coords: [-44.0556, 170.8524], type: "free", tag: "SCHLAFEN", desc: "Freedom Camp bei Fairlie.", camp: "Lake Opuha" \},\
+            \{ id: 4, day: 2, title: "Village Milk Geraldine", coords: [-44.0925, 171.2468], type: "shop", tag: "MILK \uc0\u55358 \u56667 ", desc: "Rohmilch Automat. Flaschen mitbringen!", camp: "Stop" \},\
+            \{ id: 5, day: 2, title: "Fairlie Bakehouse", coords: [-44.1017, 170.8300], type: "shop", tag: "PIES \uc0\u55358 \u56679 ", desc: "Fr\'fchst\'fcck! Pork Belly Pie.", camp: "Stop" \},\
+            \{ id: 6, day: 2, title: "Burkes Pass", coords: [-44.0782, 170.6725], type: "gem", tag: "FOTO", desc: "Retro Autos.", camp: "Stop" \},\
+            \{ id: 7, day: 2, title: "Lake Tekapo", coords: [-44.0047, 170.4771], type: "gem", tag: "VIEW", desc: "Kirche & See.", camp: "Stop" \},\
+            \{ id: 8, day: 2, title: "Lake Pukaki Lookout", coords: [-44.1793, 170.1633], type: "gem", tag: "MUST SEE", desc: "Das blaue Wunder.", camp: "Stop" \},\
+            \{ id: 9, day: 2, title: "Mt Cook / Hooker Valley", coords: [-43.7333, 170.1000], type: "hike", tag: "HIKE", desc: "3h Wanderung.", camp: "White Horse Hill" \},\
+            \{ id: 10, day: 3, title: "Clay Cliffs Omarama", coords: [-44.4921, 169.8679], type: "gem", tag: "GEM", desc: "Lehmfelsen. $5 Cash!", camp: "Stop" \},\
+            \{ id: 11, day: 3, title: "Lindis Pass", coords: [-44.5833, 169.6333], type: "gem", tag: "VIEW", desc: "Mondlandschaft.", camp: "Stop" \},\
+            \{ id: 12, day: 3, title: "Queenstown Gym", coords: [-45.0312, 168.6626], type: "gym", tag: "GYM", desc: "Gym & Sauna ($25).", camp: "Stop" \},\
+            \{ id: 13, day: 3, title: "Fergbaker & Food", coords: [-45.0318, 168.6610], type: "shop", tag: "FOOD", desc: "Pies & PAK'nSAVE Einkauf.", camp: "12 Mile Delta" \},\
+            \{ id: 14, day: 4, title: "Moke Lake", coords: [-44.9960, 168.5700], type: "gem", tag: "WALK", desc: "Versteckter See.", camp: "Stop" \},\
+            \{ id: 15, day: 4, title: "The Secret Sauna", coords: [-44.6470, 169.1450], type: "gem", tag: "RELAX", desc: "Lake Hawea. Gebucht?", camp: "Glenorchy Free" \},\
+            \{ id: 16, day: 5, title: "Earnslaw Burn Track", coords: [-44.6000, 168.4000], type: "hike", tag: "HARD", desc: "Hobbit Location. 6-8h.", camp: "Stop" \},\
+            \{ id: 17, day: 5, title: "FreshChoice Te Anau", coords: [-45.4150, 167.7180], type: "shop", tag: "SHOP", desc: "Supermarkt.", camp: "Stop" \},\
+            \{ id: 18, day: 5, title: "Henry Creek Camp", coords: [-45.197, 167.828], type: "paid", tag: "CAMP", desc: "DOC Camp ($30).", camp: "Henry Creek" \},\
+            \{ id: 19, day: 7, title: "Mirror Lakes", coords: [-44.9774, 168.0125], type: "gem", tag: "FOTO", desc: "Spiegelung.", camp: "Stop" \},\
+            \{ id: 20, day: 7, title: "Milford Sound", coords: [-44.6414, 167.8974], type: "gem", tag: "CRUISE", desc: "Fjord Cruise.", camp: "Back to Te Anau" \},\
+            \{ id: 21, day: 9, title: "Farm Fresh South", coords: [-46.368, 168.460], type: "shop", tag: "MILK \uc0\u55358 \u56667 ", desc: "Rohmilch.", camp: "Stop" \},\
+            \{ id: 22, day: 9, title: "Invercargill Gym", coords: [-46.4132, 168.3538], type: "gym", tag: "GYM", desc: "Gratis Gym.", camp: "Stop" \},\
+            \{ id: 23, day: 10, title: "McLean Falls", coords: [-46.5732, 169.3475], type: "gem", tag: "WATERFALL", desc: "Catlins Highlight.", camp: "Stop" \},\
+            \{ id: 24, day: 10, title: "Nugget Point", coords: [-46.4476, 169.8093], type: "gem", tag: "VIEW", desc: "Leuchtturm.", camp: "Stop" \},\
+            \{ id: 25, day: 11, title: "Tunnel Beach", coords: [-45.9221, 170.4573], type: "gem", tag: "MUST SEE", desc: "Dunedin. Felsbogen.", camp: "Stop" \},\
+            \{ id: 26, day: 11, title: "Pembroke P\'e2tisserie", coords: [-44.6865, 169.1920], type: "shop", tag: "BAKERY", desc: "Wanaka. Beste Croissants.", camp: "Stop" \},\
+            \{ id: 27, day: 11, title: "Wanaka Gym", coords: [-44.7000, 169.1500], type: "gym", tag: "GYM", desc: "Workout am See.", camp: "Wanaka Freedom" \},\
+            \{ id: 28, day: 12, title: "Blue Pools", coords: [-44.1637, 169.2778], type: "gem", tag: "WATER", desc: "T\'fcrkises Wasser.", camp: "Stop" \},\
+            \{ id: 29, day: 12, title: "Franz Josef", coords: [-43.3833, 170.1833], type: "gem", tag: "GLACIER", desc: "Gletscher.", camp: "Optional Paid" \},\
+            \{ id: 30, day: 14, title: "Hokitika Gorge", coords: [-42.9290, 171.0210], type: "gem", tag: "BLUE", desc: "Gletschermilch Wasser.", camp: "Stop" \},\
+            \{ id: 31, day: 14, title: "Pancake Rocks", coords: [-42.1127, 171.3263], type: "gem", tag: "ROCKS", desc: "Punakaiki.", camp: "Stop" \},\
+            \{ id: 32, day: 15, title: "Wharariki Beach", coords: [-40.5030, 172.6730], type: "gem", tag: "SEAL", desc: "Robben Babys.", camp: "Stop" \},\
+            \{ id: 33, day: 15, title: "Oaklands Milk", coords: [-41.3190, 173.2230], type: "shop", tag: "MILK", desc: "Rohmilch Nelson.", camp: "Stop" \},\
+            \{ id: 34, day: 15, title: "Abel Tasman", coords: [-40.9961, 173.0044], type: "paid", tag: "BEACH", desc: "Marahau Camp ($30).", camp: "Marahau" \},\
+            \{ id: 35, day: 19, title: "Picton Gym", coords: [-41.2931, 174.0010], type: "gym", tag: "FINALE", desc: "Letztes Gym vor F\'e4hre.", camp: "Picton Freedom" \},\
+            \{ id: 36, day: 25, title: "F\'e4hre Wellington", coords: [-41.2865, 174.7762], type: "paid", tag: "BYE", desc: "Abfahrt 21:30.", camp: "Schiff" \}\
+        ];\
+\
+        const todosData = [\
+            \{ id: 't1', title: "$5 Bargeld Clay Cliffs", desc: "Kein Kartenleser! M\'fcnzen!", urgent: true \},\
+            \{ id: 't2', title: "Milchflaschen sammeln", desc: "F\'fcr die Automaten.", urgent: true \},\
+            \{ id: 't3', title: "Secret Sauna (Tag 4)", desc: "Gebucht? Wenn nicht: Sofort pr\'fcfen.", urgent: true \},\
+            \{ id: 't4', title: "Henry Creek Camp (Tag 5)", desc: "DOC Buchung dringend f\'fcr Duschen.", urgent: true \},\
+            \{ id: 't5', title: "Milford Cruise (Tag 7)", desc: "Slot 11:00-13:00 Uhr sichern.", urgent: true \},\
+            \{ id: 't6', title: "Franz Josef Heli-Hike (Tag 12)", desc: "Teuer & Wetterabh\'e4ngig. Vorbuchen!", urgent: true \},\
+            \{ id: 't7', title: "Sandfly Spray", desc: "WICHTIG f\'fcr Westk\'fcste!", urgent: true \},\
+            \{ id: 't8', title: "Marahau Camp (Tag 15)", desc: "Vor Abel Tasman Track.", urgent: false \}\
+        ];\
+\
+        // --- APP LOGIC ---\
+        let map;\
+        let markers = \{\};\
+        // Add visited/done state\
+        let stops = stopsData.map(s => (\{...s, visited: false\}));\
+        let todos = todosData.map(t => (\{...t, done: false\}));\
+\
+        function init() \{\
+            try \{\
+                loadState();\
+                initMap();\
+                renderUI();\
+                \
+                // Hide Loading Screen\
+                setTimeout(() => \{\
+                    document.getElementById('app-loading').style.opacity = '0';\
+                    document.getElementById('app-container').style.visibility = 'visible';\
+                    setTimeout(() => document.getElementById('app-loading').remove(), 500);\
+                \}, 800);\
+            \} catch (e) \{\
+                alert("Fehler beim Laden: " + e.message);\
+            \}\
+        \}\
+\
+        function loadState() \{\
+            const savedStops = JSON.parse(localStorage.getItem('nz_master_stops') || '[]');\
+            const savedTodos = JSON.parse(localStorage.getItem('nz_master_todos') || '[]');\
+            \
+            if (savedStops.length > 0) \{\
+                stops.forEach(s => \{\
+                    if (savedStops.includes(s.id)) s.visited = true;\
+                \});\
+            \}\
+            if (savedTodos.length > 0) \{\
+                todos.forEach(t => \{\
+                    const saved = savedTodos.find(st => st.id === t.id);\
+                    if (saved) t.done = saved.done;\
+                \});\
+            \}\
+        \}\
+\
+        function saveState() \{\
+            const stopIds = stops.filter(s => s.visited).map(s => s.id);\
+            const todoStates = todos.map(t => (\{id: t.id, done: t.done\}));\
+            localStorage.setItem('nz_master_stops', JSON.stringify(stopIds));\
+            localStorage.setItem('nz_master_todos', JSON.stringify(todoStates));\
+        \}\
+\
+        function initMap() \{\
+            map = L.map('map', \{ zoomControl: false \}).setView([-43.95, 171.3], 7);\
+            L.control.zoom(\{ position: 'bottomright' \}).addTo(map);\
+            L.tileLayer('https://\{s\}.basemaps.cartocdn.com/rastertiles/voyager/\{z\}/\{x\}/\{y\}\{r\}.png', \{\
+                maxZoom: 19, attribution: '\'a9OpenStreetMap'\
+            \}).addTo(map);\
+\
+            stops.forEach(stop => createMarker(stop));\
+\
+            // Connect unvisited stops\
+            const path = stops.map(s => s.coords);\
+            L.polyline(path, \{ color: '#64748b', weight: 3, opacity: 0.4, dashArray: '5, 10' \}).addTo(map);\
+        \}\
+\
+        function createMarker(stop) \{\
+            let color = '#3b82f6'; let symbol = '\uc0\u9978 ';\
+            if (stop.type === 'gym') \{ color = '#10b981'; symbol = '\uc0\u55357 \u56490 '; \}\
+            else if (stop.type === 'gem') \{ color = '#a855f7'; symbol = '\uc0\u55357 \u56462 '; \}\
+            else if (stop.type === 'shop') \{ color = '#eab308'; symbol = '\uc0\u55357 \u57042 '; \}\
+            else if (stop.type === 'paid') \{ color = '#f97316'; symbol = '\uc0\u55357 \u56498 '; \}\
+            else if (stop.type === 'hike') \{ color = '#64748b'; symbol = '\uc0\u55356 \u57300 \u65039 '; \}\
+\
+            if (stop.visited) \{ color = '#94a3b8'; symbol = '\uc0\u10003 '; \}\
+\
+            // Pulse Logic\
+            const firstUnvisited = stops.find(s => !s.visited);\
+            const isNext = (firstUnvisited && firstUnvisited.id === stop.id);\
+\
+            let html = `<div style="background-color:$\{color\};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;position:relative;z-index:2;">$\{symbol\}</div>`;\
+            if (isNext) html += `<div class="pulse-ring" style="border-color:$\{color\}"></div>`;\
+\
+            const icon = L.divIcon(\{ className: 'custom-pin', html: html, iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12] \});\
+\
+            if (markers[stop.id]) \{\
+                markers[stop.id].setIcon(icon);\
+            \} else \{\
+                const marker = L.marker(stop.coords, \{ icon: icon \}).addTo(map);\
+                marker.bindPopup(`\
+                    <div class="text-center font-sans">\
+                        <span class="text-[10px] font-bold bg-slate-100 px-1 rounded text-slate-500">TAG $\{stop.day\}</span>\
+                        <h3 class="font-bold text-sm my-1">$\{stop.title\}</h3>\
+                        <p class="text-xs text-slate-500 mb-2">$\{stop.desc\}</p>\
+                        <button onclick="toggleStop($\{stop.id\})" class="w-full py-1 rounded text-white font-bold text-xs $\{stop.visited ? 'bg-slate-400' : 'bg-emerald-500'\}">\
+                            $\{stop.visited ? 'Als Offen markieren' : 'Abhaken'\}\
+                        </button>\
+                    </div>\
+                `);\
+                markers[stop.id] = marker;\
+            \}\
+        \}\
+\
+        function renderUI() \{\
+            renderRouteList();\
+            renderTodoList();\
+            updateProgress();\
+            if(window.lucide) lucide.createIcons();\
+        \}\
+\
+        function renderRouteList() \{\
+            const list = document.getElementById('view-route');\
+            list.innerHTML = '';\
+            \
+            stops.forEach(stop => \{\
+                const isNext = (!stop.visited && stops.find(s => !s.visited)?.id === stop.id);\
+                const item = document.createElement('div');\
+                \
+                let classes = "p-3 rounded-xl border shadow-sm cursor-pointer transition-all flex gap-3 items-start bg-white border-slate-200 relative overflow-hidden";\
+                if (stop.visited) classes += " stop-done shadow-none border-slate-100";\
+                else if (isNext) classes += " ring-2 ring-emerald-500 bg-emerald-50";\
+\
+                let badgeClass = "bg-slate-100 text-slate-500";\
+                if(!stop.visited) \{\
+                    if(stop.type === 'gym') badgeClass = "bg-emerald-100 text-emerald-700";\
+                    if(stop.type === 'gem') badgeClass = "bg-purple-100 text-purple-700";\
+                    if(stop.type === 'shop') badgeClass = "bg-yellow-100 text-yellow-700";\
+                \}\
+\
+                // Descriptions logic\
+                let descHTML = `<div class="desc-text mt-2 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100">$\{stop.desc\}</div>`;\
+                if (stop.visited) descHTML = ''; // Hide details when done\
+\
+                item.className = classes;\
+                item.onclick = () => zoomToStop(stop.id);\
+\
+                item.innerHTML = `\
+                    <button onclick="event.stopPropagation(); toggleStop($\{stop.id\})" class="check-btn mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 $\{stop.visited ? 'bg-slate-400 border-slate-400' : 'border-slate-300 hover:border-emerald-500'\}">\
+                        $\{stop.visited ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : ''\}\
+                    </button>\
+                    <div class="flex-grow">\
+                        <div class="flex justify-between items-center">\
+                            <div>\
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TAG $\{stop.day\}</span>\
+                                <h3 class="font-bold text-sm text-slate-800 leading-tight">$\{stop.title\}</h3>\
+                            </div>\
+                            <span class="text-[10px] font-bold px-2 py-1 rounded $\{badgeClass\}">$\{stop.tag\}</span>\
+                        </div>\
+                        $\{descHTML\}\
+                    </div>\
+                `;\
+                list.appendChild(item);\
+            \});\
+        \}\
+\
+        function renderTodoList() \{\
+            const list = document.getElementById('view-todo');\
+            const container = document.getElementById('todo-list');\
+            container.innerHTML = '';\
+\
+            todos.forEach(todo => \{\
+                const item = document.createElement('div');\
+                item.className = `p-3 rounded-lg border flex gap-3 items-center cursor-pointer $\{todo.done ? 'bg-slate-50 opacity-60' : 'bg-white shadow-sm hover:border-emerald-400'\}`;\
+                item.onclick = () => toggleTodo(todo.id);\
+                item.innerHTML = `\
+                    <div class="w-5 h-5 rounded border flex items-center justify-center $\{todo.done ? 'bg-emerald-500 border-emerald-500' : 'border-slate-400'\}">\
+                        $\{todo.done ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''\}\
+                    </div>\
+                    <div class="flex-grow">\
+                        <div class="flex justify-between">\
+                            <h4 class="font-bold text-sm text-slate-800 $\{todo.done ? 'line-through' : ''\}">$\{todo.title\}</h4>\
+                            $\{todo.urgent && !todo.done ? '<span class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">DRINGEND</span>' : ''\}\
+                        </div>\
+                        <p class="text-xs text-slate-500">$\{todo.desc\}</p>\
+                    </div>\
+                `;\
+                container.appendChild(item);\
+            \});\
+            \
+            // Badge Logic\
+            const urgentCount = todos.filter(t => t.urgent && !t.done).length;\
+            document.getElementById('todo-badge').style.display = urgentCount > 0 ? 'block' : 'none';\
+        \}\
+\
+        function updateProgress() \{\
+            const done = stops.filter(s => s.visited).length;\
+            const total = stops.length;\
+            document.getElementById('progress-bar').style.width = `$\{(done/total)*100\}%`;\
+            document.getElementById('progress-text').innerText = `$\{done\}/$\{total\} Done`;\
+        \}\
+\
+        // --- GLOBAL HANDLERS ---\
+        window.toggleStop = function(id) \{\
+            const s = stops.find(x => x.id === id);\
+            if(s) \{\
+                s.visited = !s.visited;\
+                saveState();\
+                renderUI();\
+                stops.forEach(stop => createMarker(stop)); // Refresh markers\
+                if(markers[id].isPopupOpen()) \{ markers[id].closePopup(); markers[id].openPopup(); \}\
+            \}\
+        \};\
+\
+        window.toggleTodo = function(id) \{\
+            const t = todos.find(x => x.id === id);\
+            if(t) \{\
+                t.done = !t.done;\
+                saveState();\
+                renderUI();\
+            \}\
+        \};\
+\
+        window.zoomToStop = function(id) \{\
+            const s = stops.find(x => x.id === id);\
+            map.flyTo(s.coords, 10, \{ duration: 1 \});\
+            markers[id].openPopup();\
+            // Mobile Scroll\
+            if(window.innerWidth < 768) document.getElementById('map-container').scrollIntoView(\{behavior:'smooth'\});\
+        \};\
+\
+        window.switchTab = function(tab) \{\
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));\
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));\
+            document.getElementById(`view-$\{tab\}`).classList.add('active');\
+            document.getElementById(`tab-$\{tab\}`).classList.add('active');\
+        \};\
+\
+        // Start App\
+        document.addEventListener('DOMContentLoaded', init);\
+    </script>\
+</body>\
+</html>}
